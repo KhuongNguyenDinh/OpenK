@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenK Data Studio — Interactive Profiling &amp; Fuzzy Clustering</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #131a2e;
+      --panel-2: #1a233d;
+      --border: #263252;
+      --text: #e6ecff;
+      --muted: #93a2c7;
+      --accent: #5b8cff;
+      --accent-2: #22d3ee;
+      --success: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; }
+    .brand-badge {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #071022;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+    .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    button, select, input {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 0.86rem;
+    }
+    button { cursor: pointer; transition: 0.15s ease; font-weight: 500; }
+    button:hover:not(:disabled) { border-color: var(--accent); background: #202c4d; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), #3b6ef5);
+      border-color: transparent;
+      color: #fff;
+      font-weight: 600;
+    }
+    button.success { background: #15803d; border-color: transparent; color: #fff; }
+    .layout {
+      display: grid;
+      grid-template-columns: 290px 1fr;
+      min-height: calc(100vh - 57px);
+    }
+    aside {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    main { padding: 18px 22px; overflow-x: auto; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+    h3 { margin: 0 0 10px 0; font-size: 0.92rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .hidden { display: none !important; }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+    }
+    .pill.good { color: var(--success); border-color: rgba(34,197,94,0.4); }
+    .pill.warn { color: var(--warn); border-color: rgba(245,158,11,0.4); }
+    .pill.bad { color: var(--danger); border-color: rgba(239,68,68,0.4); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    th, td {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      max-width: 260px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    th { background: var(--panel-2); position: sticky; top: 0; color: var(--muted); font-weight: 600; }
+    tr:hover td { background: rgba(91,140,255,0.06); }
+    .grid-wrap { max-height: 62vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+    .cluster-card {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .cluster-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .member-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .member-chip {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .kpi { background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+    .kpi .val { font-size: 1.5rem; font-weight: 700; }
+    .kpi .lbl { font-size: 0.78rem; color: var(--muted); }
+    .history-item { font-size: 0.8rem; padding: 6px 0; border-bottom: 1px dashed var(--border); color: var(--muted); }
+    .toast {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      background: var(--panel-2);
+      border: 1px solid var(--accent);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.86rem;
+      z-index: 50;
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span>OpenK Data Studio</span>
+      <span class="brand-badge">v2.0</span>
+      <span id="datasetBadge" class="pill hidden"></span>
+      <span id="healthBadge" class="pill hidden"></span>
+    </div>
+    <div class="toolbar">
+      <button id="btnUndo" disabled>Undo</button>
+      <button id="btnRedo" disabled>Redo</button>
+      <button id="btnExportCsv" disabled>Export CSV</button>
+      <button id="btnExportJson" disabled>Export JSON</button>
+      <button id="btnExportRecipe" disabled>Export Recipe</button>
+      <a href="/docs" target="_blank" style="color: var(--accent-2); font-size: 0.84rem; text-decoration: none; margin-left: 6px;">API Docs ↗</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <div class="card">
+        <h3>Load Dataset</h3>
+        <input type="file" id="fileInput" accept=".csv,.tsv,.json,.xlsx,.xls,.parquet" style="width: 100%; margin-bottom: 8px;" />
+        <button id="btnUpload" class="primary" style="width: 100%; margin-bottom: 10px;">Upload File</button>
+        <div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 6px;">Or load a thesis sample dataset:</div>
+        <select id="sampleSelect" style="width: 100%; margin-bottom: 8px;"></select>
+        <button id="btnLoadSample" style="width: 100%;">Load Sample</button>
+      </div>
+
+      <div class="card">
+        <h3>Quick Transforms</h3>
+        <select id="transformCol" style="width: 100%; margin-bottom: 8px;"></select>
+        <select id="transformOp" style="width: 100%; margin-bottom: 8px;">
+          <option value="trim">Trim Whitespace</option>
+          <option value="collapse_whitespace">Collapse Extra Spaces</option>
+          <option value="title">Title Case</option>
+          <option value="lower">Lowercase</option>
+          <option value="upper">Uppercase</option>
+          <option value="drop_duplicates">Drop Exact Duplicate Rows</option>
+        </select>
+        <button id="btnTransform" style="width: 100%;" disabled>Apply Transform</button>
+      </div>
+
+      <div class="card" style="flex: 1; overflow-y: auto; max-height: 280px;">
+        <h3>Operation History</h3>
+        <div id="historyList" style="font-size: 0.8rem; color: var(--muted);">No operations yet.</div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="grid">Data Grid</button>
+        <button class="tab-btn" data-tab="profile">Quality Profile</button>
+        <button class="tab-btn" data-tab="cluster">Clustering Studio</button>
+        <button class="tab-btn" data-tab="benchmarks">Continuous Improvement</button>
+      </div>
+
+      <section id="tab-grid">
+        <div style="display: flex; gap: 10px; margin-bottom: 12px; align-items: center;">
+          <input id="searchInput" placeholder="Search rows..." style="min-width: 260px;" />
+          <button id="btnSearch">Search</button>
+          <span id="rowStats" style="font-size: 0.84rem; color: var(--muted);">Load a dataset to begin.</span>
+        </div>
+        <div class="grid-wrap">
+          <table id="dataTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-profile" class="hidden">
+        <div class="kpi-grid" id="profileKpis"></div>
+        <div class="card" style="margin-bottom: 14px;">
+          <h3>Actionable Suggestions</h3>
+          <ul id="suggestionsList" style="margin: 0; padding-left: 18px; font-size: 0.86rem;"></ul>
+        </div>
+        <div class="grid-wrap">
+          <table id="profileTable">
+            <thead>
+              <tr>
+                <th>Column</th><th>Type</th><th>Missing</th><th>Unique</th>
+                <th>Whitespace Issues</th><th>Case Variants</th><th>Fingerprint Clusters</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-cluster" class="hidden">
+        <div class="card" style="margin-bottom: 14px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+          <select id="clusterCol"></select>
+          <select id="clusterMethod">
+            {% for m in methods %}
+            <option value="{{ m }}">{{ m }}</option>
+            {% endfor %}
+          </select>
+          <input id="clusterThreshold" type="number" step="0.01" placeholder="Threshold / Radius" style="width: 140px;" />
+          <button id="btnRecommend">Auto-Recommend</button>
+          <button id="btnRunCluster" class="primary">Find Clusters</button>
+          <button id="btnApplyMerge" class="success hidden">Apply Selected Merges</button>
+        </div>
+        <div id="recommendNote" style="font-size: 0.84rem; color: var(--accent-2); margin-bottom: 10px;"></div>
+        <div id="clusterResults"></div>
+      </section>
+
+      <section id="tab-benchmarks" class="hidden">
+        <div class="card">
+          <h3>Continuous Improvement Benchmark History</h3>
+          <p style="font-size: 0.85rem; color: var(--muted);">
+            Run <code>python -m openk.eval.benchmark</code> or <code>openk benchmark</code> to evaluate clustering Precision, Recall, F1, and Runtime against ground-truth dirty datasets.
+          </p>
+          <div id="benchmarkContainer">Loading...</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script>
+    const DEFAULTS = {{ defaults | tojson }};
+    let sessionId = null;
+    let currentState = null;
+    let currentClusters = [];
+
+    const $ = (id) => document.getElementById(id);
+
+    function showToast(msg) {
+      const t = $("toast");
+      t.textContent = msg;
+      t.classList.remove("hidden");
+      setTimeout(() => t.classList.add("hidden"), 3000);
+    }
+
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        const target = btn.dataset.tab;
+        ["grid", "profile", "cluster", "benchmarks"].forEach((t) => {
+          $("tab-" + t).classList.toggle("hidden", t !== target);
+        });
+        if (target === "benchmarks") loadBenchmarks();
+      });
+    });
+
+    async function loadSamples() {
+      const res = await fetch("/api/samples");
+      const data = await res.json();
+      const sel = $("sampleSelect");
+      sel.innerHTML = "";
+      data.samples.forEach((s) => {
+        const opt = document.createElement("option");
+        opt.value = s.filename;
+        opt.textContent = `${s.filename} (${s.size_kb} KB)`;
+        sel.appendChild(opt);
+      });
+    }
+
+    function renderState(state) {
+      currentState = state;
+      sessionId = state.session_id;
+      $("datasetBadge").textContent = `${state.name} (${state.total_rows} rows)`;
+      $("datasetBadge").classList.remove("hidden");
+
+      const score = state.profile.health_score;
+      const hb = $("healthBadge");
+      hb.textContent = `Health: ${score}/100`;
+      hb.className = "pill " + (score >= 85 ? "good" : score >= 60 ? "warn" : "bad");
+
+      $("btnUndo").disabled = !state.can_undo;
+      $("btnRedo").disabled = !state.can_redo;
+      $("btnExportCsv").disabled = false;
+      $("btnExportJson").disabled = false;
+      $("btnExportRecipe").disabled = false;
+      $("btnTransform").disabled = false;
+
+      // Populate column dropdowns
+      ["transformCol", "clusterCol"].forEach((id) => {
+        const sel = $(id);
+        const prev = sel.value;
+        sel.innerHTML = "";
+        state.columns.forEach((c) => {
+          const opt = document.createElement("option");
+          opt.value = c;
+          opt.textContent = c;
+          sel.appendChild(opt);
+        });
+        if (state.columns.includes(prev)) sel.value = prev;
+      });
+
+      // Render Grid
+      $("rowStats").textContent = `Showing ${state.rows.length} of ${state.filtered_rows} rows (${state.columns.length} columns)`;
+      const thead = $("dataTable").querySelector("thead");
+      const tbody = $("dataTable").querySelector("tbody");
+      thead.innerHTML = "<tr>" + state.columns.map((c) => `<th>${c}</th>`).join("") + "</tr>";
+      tbody.innerHTML = state.rows
+        .map((r) => "<tr>" + state.columns.map((c) => `<td title="${r[c] ?? ""}">${r[c] ?? ""}</td>`).join("") + "</tr>")
+        .join("");
+
+      // Render Profile
+      const p = state.profile;
+      $("profileKpis").innerHTML = `
+        <div class="kpi"><div class="val">${p.health_score}</div><div class="lbl">Health Score / 100</div></div>
+        <div class="kpi"><div class="val">${p.row_count}</div><div class="lbl">Total Rows</div></div>
+        <div class="kpi"><div class="val">${p.column_count}</div><div class="lbl">Columns</div></div>
+        <div class="kpi"><div class="val">${p.duplicate_rows}</div><div class="lbl">Duplicate Rows</div></div>
+      `;
+      $("suggestionsList").innerHTML = p.suggestions.length
+        ? p.suggestions.map((s) => `<li>${s}</li>`).join("")
+        : "<li>Dataset looks clean!</li>";
+      $("profileTable").querySelector("tbody").innerHTML = p.columns
+        .map(
+          (c) => `<tr>
+            <td><strong>${c.name}</strong></td>
+            <td>${c.dtype}</td>
+            <td>${c.missing_count} (${c.missing_pct}%)</td>
+            <td>${c.unique_count} (${c.uniqueness_pct}%)</td>
+            <td>${c.whitespace_issues}</td>
+            <td>${c.case_variants}</td>
+            <td>${c.potential_clusters}</td>
+          </tr>`
+        )
+        .join("");
+
+      // Render History
+      $("historyList").innerHTML = state.history.length
+        ? state.history.map((h, i) => `<div class="history-item">${i + 1}. ${h.summary}</div>`).join("")
+        : "No operations yet.";
+    }
+
+    $("btnLoadSample").addEventListener("click", async () => {
+      const filename = $("sampleSelect").value;
+      if (!filename) return;
+      const res = await fetch("/api/sessions/sample", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename }),
+      });
+      const data = await res.json();
+      renderState(data);
+      showToast(`Loaded ${filename}`);
+    });
+
+    $("btnUpload").addEventListener("click", async () => {
+      const file = $("fileInput").files[0];
+      if (!file) return showToast("Select a file first");
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/sessions/upload", { method: "POST", body: fd });
+      if (!res.ok) return showToast("Upload failed");
+      renderState(await res.json());
+      showToast(`Uploaded ${file.name}`);
+    });
+
+    $("btnSearch").addEventListener("click", async () => {
+      if (!sessionId) return;
+      const q = encodeURIComponent($("searchInput").value);
+      const res = await fetch(`/api/sessions/${sessionId}?search=${q}`);
+      renderState(await res.json());
+    });
+
+    $("btnTransform").addEventListener("click", async () => {
+      if (!sessionId) return;
+      const res = await fetch(`/api/sessions/${sessionId}/transform`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ column: $("transformCol").value, operation: $("transformOp").value }),
+      });
+      const data = await res.json();
+      renderState(data.state);
+      showToast(data.operation.summary);
+    });
+
+    $("btnUndo").addEventListener("click", async () => {
+      if (!sessionId) return;
+      const res = await fetch(`/api/sessions/${sessionId}/undo`, { method: "POST" });
+      const data = await res.json();
+      renderState(data.state);
+      showToast("Undid last operation");
+    });
+
+    $("btnRedo").addEventListener("click", async () => {
+      if (!sessionId) return;
+      const res = await fetch(`/api/sessions/${sessionId}/redo`, { method: "POST" });
+      const data = await res.json();
+      renderState(data.state);
+      showToast("Redid operation");
+    });
+
+    $("clusterMethod").addEventListener("change", () => {
+      const m = $("clusterMethod").value;
+      $("clusterThreshold").value = DEFAULTS[m] ?? 0;
+    });
+
+    $("btnRecommend").addEventListener("click", async () => {
+      if (!sessionId) return showToast("Load a dataset first");
+      const col = encodeURIComponent($("clusterCol").value);
+      const res = await fetch(`/api/sessions/${sessionId}/recommend?column=${col}`);
+      const rec = await res.json();
+      $("clusterMethod").value = rec.method;
+      $("clusterThreshold").value = rec.threshold;
+      $("recommendNote").textContent = `Recommended: ${rec.method} (threshold=${rec.threshold}) — ${rec.reason}`;
+    });
+
+    $("btnRunCluster").addEventListener("click", async () => {
+      if (!sessionId) return showToast("Load a dataset first");
+      const thrVal = $("clusterThreshold").value;
+      const res = await fetch(`/api/sessions/${sessionId}/cluster`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          column: $("clusterCol").value,
+          method: $("clusterMethod").value,
+          threshold: thrVal === "" ? null : parseFloat(thrVal),
+        }),
+      });
+      const data = await res.json();
+      currentClusters = data.clusters || [];
+      const container = $("clusterResults");
+      $("btnApplyMerge").classList.toggle("hidden", currentClusters.length === 0);
+      if (!currentClusters.length) {
+        container.innerHTML = `<div class="card">No clusters found for <strong>${data.column}</strong> using <code>${data.method}</code>.</div>`;
+        return;
+      }
+      container.innerHTML = currentClusters
+        .map(
+          (cl, idx) => `
+          <div class="cluster-card">
+            <div class="cluster-head">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" class="cluster-check" data-idx="${idx}" checked />
+                <strong>Cluster #${cl.cluster_id}</strong>
+                <span class="pill">${cl.total_rows} rows · ${cl.members.length} variants</span>
+              </label>
+              <div>
+                <span style="font-size:0.8rem;color:var(--muted);">Merge into:</span>
+                <input type="text" class="cluster-target" data-idx="${idx}" value="${cl.canonical.replace(/"/g, "&quot;")}" />
+              </div>
+            </div>
+            <div class="member-list">
+              ${cl.members.map((m) => `<span class="member-chip">${m.value} <strong>(${m.count})</strong></span>`).join("")}
+            </div>
+          </div>`
+        )
+        .join("");
+    });
+
+    $("btnApplyMerge").addEventListener("click", async () => {
+      if (!sessionId) return;
+      const merges = [];
+      document.querySelectorAll(".cluster-check:checked").forEach((chk) => {
+        const idx = parseInt(chk.dataset.idx, 10);
+        const target = document.querySelector(`.cluster-target[data-idx="${idx}"]`).value;
+        merges.push({
+          from_values: currentClusters[idx].members.map((m) => m.value),
+          to_value: target,
+        });
+      });
+      if (!merges.length) return showToast("No clusters selected");
+      const res = await fetch(`/api/sessions/${sessionId}/merge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ column: $("clusterCol").value, merges }),
+      });
+      const data = await res.json();
+      renderState(data.state);
+      $("clusterResults").innerHTML = "";
+      $("btnApplyMerge").classList.add("hidden");
+      showToast(data.operation.summary);
+    });
+
+    $("btnExportCsv").addEventListener("click", () => {
+      if (sessionId) window.location.href = `/api/sessions/${sessionId}/export?fmt=csv`;
+    });
+    $("btnExportJson").addEventListener("click", () => {
+      if (sessionId) window.location.href = `/api/sessions/${sessionId}/export?fmt=json`;
+    });
+    $("btnExportRecipe").addEventListener("click", async () => {
+      if (!sessionId) return;
+      const res = await fetch(`/api/sessions/${sessionId}/recipe`);
+      const blob = new Blob([JSON.stringify(await res.json(), null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "openk_recipe.json";
+      a.click();
+    });
+
+    async function loadBenchmarks() {
+      const res = await fetch("/api/benchmarks");
+      const data = await res.json();
+      const el = $("benchmarkContainer");
+      if (!data.runs.length) {
+        el.innerHTML = "<p>No benchmark runs recorded yet.</p>";
+        return;
+      }
+      const latest = data.runs[data.runs.length - 1];
+      el.innerHTML = `
+        <p style="font-size:0.84rem;color:var(--muted);">Latest run: <strong>${latest.timestamp}</strong> · Best method: <strong>${latest.best_method}</strong> (F1 = ${latest.best_f1})</p>
+        <table>
+          <thead><tr><th>Dataset</th><th>Method</th><th>Threshold</th><th>Precision</th><th>Recall</th><th>F1</th><th>Time (ms)</th></tr></thead>
+          <tbody>
+            ${latest.results
+              .map(
+                (r) => `<tr>
+                  <td>${r.dataset}</td><td>${r.method}</td><td>${r.threshold}</td>
+                  <td>${r.precision}</td><td>${r.recall}</td><td><strong>${r.f1}</strong></td><td>${r.runtime_ms}</td>
+                </tr>`
+              )
+              .join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    loadSamples();
+    $("clusterThreshold").value = DEFAULTS[$("clusterMethod").value] ?? 0;
+  </script>
+</body>
+</html>

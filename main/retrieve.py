@@ -1,7 +1,8 @@
+import os
 from azure.cosmos import exceptions, CosmosClient, PartitionKey
 
-endpoint = "https://synapseliiink.documents.azure.com:443/;"
-key = '9qu5XzdNZTdCNeC2ZWjWqhZbmWVCoT3qFU0M7SS1P82H00dmG8OSvqEnlEGujIpSUB6lGeyc1Q0ERsDuXirLGg==;'
+endpoint = os.environ.get("AZURE_COSMOS_ENDPOINT", "")
+key = os.environ.get("AZURE_COSMOS_KEY", "")
 client = CosmosClient(endpoint, key)
 database_name = 'data'
 database = client.create_database_if_not_exists(id=database_name)
