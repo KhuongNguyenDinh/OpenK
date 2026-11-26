@@ -88,3 +88,26 @@ OpenK/
 - [Architecture & Thesis Modernization](docs/ARCHITECTURE.md)
 - [Clustering & Similarity Algorithms](docs/ALGORITHMS.md)
 - [Continuous Improvement System](docs/CONTINUOUS_IMPROVEMENT.md)
+
+---
+
+## Research Paper & Citation
+
+OpenK is based on the published research paper:
+
+> **OpenK: An Elastic Data Cleansing System with A Clustering-based Data Anomaly Detection Approach**  
+> Tran Khanh Dang, Dinh Khuong Nguyen, Tuan Luc Minh  
+> *15th International Conference on Advanced Computing and Applications (ACOMP 2021)*, IEEE CPS, November 2021  
+> Paper link: [ResearchGate](https://www.researchgate.net/publication/357720736_Open_K_An_Elastic_Data_Cleansing_System_with_A_Clustering-based_Data_Anomaly_Detection_Approach)
+
+```bibtex
+@inproceedings{dang2021openk,
+  title     = {OpenK: An Elastic Data Cleansing System with A Clustering-based Data Anomaly Detection Approach},
+  author    = {Dang, Tran Khanh and Nguyen, Dinh Khuong and Minh, Tuan Luc},
+  booktitle = {15th International Conference on Advanced Computing and Applications (ACOMP)},
+  year      = {2021},
+  month     = {November},
+  publisher = {IEEE CPS},
+  url       = {https://www.researchgate.net/publication/357720736_Open_K_An_Elastic_Data_Cleansing_System_with_A_Clustering-based_Data_Anomaly_Detection_Approach}
+}
+```
